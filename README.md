@@ -23,7 +23,7 @@ Go into the folder for identifying detection heads:
 ### Finding Detection Heads
 To identify the **detection heads** in the model, run:
 
-```bash
+```
 python find_detection_heads.py --model <model> --percent <top_percent>
 ```
 
@@ -36,7 +36,7 @@ A heatmap of average attention differences is saved in `heat_map/<model>_<percen
 ### Detection Head Intervention
 To perform **intervention on detection heads** in the model, run:
 
-```bash
+```
 python detection_head_intervention.py  --model <model> --attack <attack> \
     --percent <top_percent> --refusal_factor <refusal_scale> \
     --dataset <dataset_name> --save_path <output_file>
@@ -62,7 +62,7 @@ Go into the folder for identifying refusal heads:
 ### Response Generation
 To get the model responses for harmful and neutral prompts:
 
-```bash
+```
 python response_generation.py --model <model>
 ```
 
@@ -71,7 +71,7 @@ Outputs are saved in `responses/<model>.json`
 ### Extrace Refusal Direction
 To get the refusal direction, run:
 
-```bash
+```
 python extract_direction_attn.py --model <model>
 ```
 
@@ -80,7 +80,7 @@ The script computes the refusal direction by averaging post-attention residuals 
 ### Finding Refusal Heads
 To identify the **refusal heads** in the model, run:
 
-```bash
+```
 python find_refusal_heads.py --model <model> --percent <top_percent>
 ```
 
@@ -92,7 +92,7 @@ Results are saved in `refusal_heads/<model>_<percent>.json`
 
 To perform **intervention on refusal heads** in the model, run:
 
-```bash
+```
 python refusal_head_intervention.py --model <model> --attack <attack> \
     --percent <top_percent> --refusal_factor <refusal_scale> \
     --dataset <dataset_name> --save_path <output_file>
@@ -113,7 +113,7 @@ After identifying detection and refusal heads, you can intervene on the model by
 
 Run the evaluation script to apply the interventions and measure safety rates:
 
-```bash
+```
 python evaluate.py --model <model> --attack <attack_type> --intervened \
     --percent <top_percent> --detection_factor <detection_scale> \
     --refusal_factor <refusal_scale> --dataset <dataset_name> \
