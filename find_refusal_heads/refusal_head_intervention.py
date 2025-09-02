@@ -26,37 +26,30 @@ from transformers.utils import logging
 logging.set_verbosity_error()
 
 import pickle
-import pandas as pd
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 
 # -------------------- Argument parsing --------------------
 parser = argparse.ArgumentParser()
-parser.add_argument("--target_model", type=str, default="llama3")
+parser.add_argument("--model", type=str, default="llama3")
 parser.add_argument("--attack", type=str, default="advllm", help="benign, none, gcg, advllm")
 parser.add_argument("--remove_sys_prompt", action=argparse.BooleanOptionalAction)
 parser.add_argument("--dataset", type=str, default="advbench", help="advbench or mlcinst")
 parser.add_argument("--offset", type=int, default=0)
 parser.add_argument("--n_train_data", type=int, default=100)
-parser.add_argument("--percent", type=float, default=1)
-parser.add_argument(
-    "--mode",
-    choices=["scale", "add"],
-    default="scale",
-    help="scale: multiply weights; add: add direction"
-)
+parser.add_argument("--percent", type=float, default=3.0)
 parser.add_argument(
     "--factor",
     type=float,
     default=3.0,
     help="scale factor for 'scale' mode or alpha for 'add' mode"
 )
-parser.add_argument("--save_path", type=str, required=True, help="Path to save the results")
+parser.add_argument("--save_path", type=str, default="refusal_head_intervention_result.csv", help="Path to save the results")
 args = parser.parse_args()
 
 # -------------------- Load model & tokenizer --------------------
-model_path = MODEL_DICT[args.target_model]
+model_path = MODEL_DICT[args.model]
 model = (
     AutoModelForCausalLM
     .from_pretrained(model_path, torch_dtype=torch.float16)
@@ -84,20 +77,10 @@ hidden_size = model.config.hidden_size
 head_dim = hidden_size // num_heads
 
 # -------------------- Load detection heads --------------------
-detect_path = f"detection_heads/{args.target_model}_{args.percent}.json"
+detect_path = f"refusal_heads/{args.model}_{args.percent}.json"
 with open(detect_path, "r") as f:
     det_list = json.load(f)
 heads = [(int(d["layer"]), int(d["head"])) for d in det_list]
-
-# -------------------- Load direction vectors --------------------
-dir_path = f"head_directions/{args.target_model}_directions.json"
-with open(dir_path, "r") as f:
-    dir_list = json.load(f)
-# map (layer,head) -> tensor of length head_dim
-dir_map = {
-    (d["layer"], d["head"]): torch.tensor(d["direction"], device=device)
-    for d in dir_list
-}
 
 # -------------------- Apply intervention --------------------
 for layer_idx, head_idx in heads:
@@ -106,22 +89,14 @@ for layer_idx, head_idx in heads:
 
     W = model.model.layers[layer_idx].self_attn.o_proj.weight.detach().clone()
 
-    if args.mode == "scale":
-        W[:, start:end] *= args.factor
+    W[:, start:end] *= args.factor
 
-    elif args.mode == "add":
-        d = dir_map[(layer_idx, head_idx)]  # length = head_dim
-        # broadcast add: each of the hidden_size rows gets the same d element at column start:end
-        injection = (d.unsqueeze(1) / head_dim) * args.factor
-        W[:, start:end] += injection
-
-    # write back
     model.model.layers[layer_idx].self_attn.o_proj.weight = nn.Parameter(W)
 
-if args.target_model == "vicuna":
+if args.model == "vicuna":
     model.generation_config.do_sample = True
 
-temp_model_path = f"temp_models/{args.target_model}_{args.attack}_{args.factor}"
+temp_model_path = f"temp_models/{args.model}_{args.attack}_{args.factor}"
 os.makedirs("temp_models", exist_ok=True)
 model.save_pretrained(temp_model_path)
 tokenizer.save_pretrained(temp_model_path)
@@ -142,33 +117,33 @@ model = LLM(
 benign_prompts = load_dataset('tatsu-lab/alpaca', split=f'train[:{args.n_train_data}]')['instruction']
 if args.dataset == "advbench":
     goals, _ = get_goals_and_targets(
-        "data/advbench/harmful_behaviors.csv",
+        "../data/advbench/harmful_behaviors.csv",
         args.offset,
         args.n_train_data
     )
 elif args.dataset == "mlcinst":
-    with open("data/MaliciousInstruct.txt", 'r') as f:
+    with open("../data/MaliciousInstruct.txt", 'r') as f:
         goals = [l.strip() for l in f]
 else:
     raise ValueError(f"Unknown dataset '{args.dataset}'")
 
 adv_prompts = []
 if args.attack == "advllm":
-    with open(f"data/adv_prompts/advbench/greedy/{args.target_model}.pkl", 'rb') as f:
+    with open(f"../data/adv_prompts/advbench/greedy/{args.model}.pkl", 'rb') as f:
         adv_prompts = pickle.load(f)[: args.n_train_data]
 elif args.attack == "advllm_gbs":
-    with open(f"data/adv_prompts/advbench/group_beam_search_50/{args.target_model}.pkl", 'rb') as f:
+    with open(f"../data/adv_prompts/advbench/group_beam_search_50/{args.model}.pkl", 'rb') as f:
         adv_prompts = pickle.load(f)[: args.n_train_data]
 
 gcg_g = []
 gcg_adv = []
 if args.attack == "gcg":
-    gcg_df = merge_csv(f"data/gcg_results/{args.target_model}/")
+    gcg_df = merge_csv(f"../data/gcg_results/{args.model}/original/")
     gcg_g = gcg_df['prompt'].tolist()
     gcg_adv = gcg_df['adv'].tolist()
 
 # -------------------- Run attacks --------------------
-conv = load_conversation_template(args.target_model)
+conv = load_conversation_template(args.model)
 if args.remove_sys_prompt:
     conv.set_system_message("")
 
@@ -179,9 +154,10 @@ if args.attack in ['benign','none','advllm']:
     queries = {
         'benign': benign_prompts,
         'none':   goals,
-        'advllm': adv_prompts
+        'advllm': adv_prompts,
+        'advllm_gbs': adv_prompts
     }[args.attack]
-    for q in queries:
+    for q in tqdm(queries):
         conv.messages = []
         conv.append_message(conv.roles[0], q)
         conv.append_message(conv.roles[1], None)
@@ -213,13 +189,14 @@ sample_params = SamplingParams(
     max_tokens=100
 )
 
+responses = []
 print("Running attacks...")
 outputs = model.generate(prompts, sampling_params=sample_params)
 responses = [output.outputs[0].text for output in outputs]
 
 # -------------------- Save results --------------------
 os.makedirs("results", exist_ok=True)
-with open(f"results/{args.target_model}_{args.attack}_{args.factor}_{args.percent}.txt", 'w') as f:
+with open(f"results/{args.model}_{args.attack}_{args.factor}_{args.percent}.txt", 'w') as f:
     for adv, resp in zip(advs, responses):
         f.write(f"Adv: {adv}\nResponse: {resp}\n\n")
 
@@ -264,13 +241,10 @@ print(f"Safe rate (template): {safe_templ:.3f}")
 print(f"Safe rate (llama guard): {safe_guard:.3f}")
 print(f"Perplexity: {perplexity:.3f}")
 
-os.makedirs("csv_results", exist_ok=True)
-csv_path = f"csv_results/{args.save_path}"
-file_exists = os.path.exists(f"csv_results/{args.save_path}")
-
-with open(csv_path, 'a', newline='') as f:
+file_exists = os.path.exists(args.save_path)
+with open(args.save_path, 'a', newline='') as f:
     writer = csv.writer(f)
     if not file_exists:
         writer.writerow(['model', 'attack', 'dataset', 'factor', 'percent','safe_template', 'safe_guard', 'perplexity'])
     
-    writer.writerow([args.target_model, args.attack, args.dataset, args.factor, args.percent, round(safe_templ, 3), round(safe_guard, 3), round(perplexity, 3)])
+    writer.writerow([args.model, args.attack, args.dataset, args.factor, args.percent, round(safe_templ, 3), round(safe_guard, 3), round(perplexity, 3)])

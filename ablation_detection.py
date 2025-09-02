@@ -37,7 +37,7 @@ hidden_size = model.config.hidden_size
 head_dim = hidden_size // num_heads
 
 # -------------------- Load refusal heads --------------------
-detect_path = f"refusal_heads/{args.model}_{args.percent}.json"
+detect_path = f"find_refusal_heads/refusal_heads/{args.model}_{args.percent}.json"
 with open(detect_path, "r") as f:
     det_list = json.load(f)
 heads = [(int(d["layer"]), int(d["head"])) for d in det_list]
@@ -56,7 +56,7 @@ for layer_idx, head_idx in heads:
 print(f"Modified {len(heads)} heads in {args.model} with factor {args.factor}")
 
 
-probing_data = pd.read_csv("../filtered_harmful_neutral_prompts.csv")
+probing_data = pd.read_csv("data/filtered_harmful_neutral_prompts.csv")
 harmful_prompts = probing_data['Harmful Prompt'].tolist()
 neutral_prompts = probing_data['Neutral Prompt'].tolist()
 

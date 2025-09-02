@@ -31,11 +31,11 @@ tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True, us
 model.generation_config.do_sample = True
 tokenizer.pad_token = tokenizer.eos_token
 
-refusal_direction = torch.load(f"directions/{args.model}_refusal_direction_attn.pt").to(device)
+refusal_direction = torch.load(f"find_refusal_heads/directions/{args.model}_refusal_direction_attn.pt").to(device)
 print(refusal_direction.size())
 refusal_direction = refusal_direction / torch.norm(refusal_direction, dim=-1, keepdim=True)
 
-with open(f"responses/{args.model}.json", "r") as f:
+with open(f"find_refusal_heads/responses/{args.model}.json", "r") as f:
     response_data = json.load(f)
 
 harmful_prompts = [entry["Harmful Prompt"] for entry in response_data]
@@ -51,7 +51,7 @@ hidden_size = model.config.hidden_size
 num_heads = model.config.num_attention_heads
 head_dim = hidden_size // num_heads
 
-detection_path = f"detection_heads/{args.model}_{args.percent}.json"
+detection_path = f"find_detection_heads/detection_heads/{args.model}_{args.percent}.json"
 with open(detection_path, "r") as f:
     det_list = json.load(f)
 detection_heads = [(int(d["layer"]), int(d["head"])) for d in det_list]
@@ -137,7 +137,7 @@ plt.figure(figsize=(12, 10))
 plt.imshow(avg_contribution[:, :], cmap='coolwarm', aspect='auto', vmin=-max_abs_value, vmax=max_abs_value)
 plt.colorbar(label='Average refusal contribution')
 
-refusal_path = f"refusal_heads/{args.model}_{args.percent}.json"
+refusal_path = f"find_refusal_heads/refusal_heads/{args.model}_{args.percent}.json"
 with open(refusal_path, "r") as f:
     refusal_list = json.load(f)
 refusal_heads = [(int(h["layer"]), int(h["head"])) for h in refusal_list]

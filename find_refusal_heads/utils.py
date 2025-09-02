@@ -54,6 +54,11 @@ MODEL_DICT = {"llama3": "meta-llama/Meta-Llama-3-8B-Instruct",
                     "llama2_70b": "meta-llama/Llama-2-70b-chat-hf",
                     "phi3": "microsoft/Phi-3-mini-4k-instruct"}
 
+def top_k_heads(matrix, k=20, r=True):
+    # Flatten the matrix and get indices of the top 10 values
+    flattened = [(value, (i, j)) for i, row in enumerate(matrix) for j, value in enumerate(row)]
+    return sorted(flattened, key=lambda x: x[0], reverse=r)[:k]
+
 # This function is based on GCG attack implementation: https://github.com/llm-attacks/llm-attacks
 # "Universal and Transferable Adversarial Attacks on Aligned Language Models" by Andy Zou, Zifan Wang, Nicholas Carlini, Milad Nasr, J. Zico Kolter, and Matt Fredrikson
 def get_goals_and_targets(data_path, offset, n_train_data):
@@ -108,6 +113,21 @@ def merge_csv(folder_path):
     if 'Unnamed: 0' in merged.columns:
         merged = merged.drop('Unnamed: 0', axis=1)
     return merged
+
+def filter_response(harmful_prompt, neutral_prompt, harmful_response, neutral_response):
+    filtered_harmful_prompt = []
+    filtered_neutral_prompt = []
+    filtered_harmful = []
+    filtered_neutral = []
+
+    for harm_prompt, neu_prompt, harm, neutral in zip(harmful_prompt, neutral_prompt, harmful_response, neutral_response):
+        if not any(pref in neutral for pref in test_prefixes):
+            filtered_harmful_prompt.append(harm_prompt)
+            filtered_neutral_prompt.append(neu_prompt)
+            filtered_harmful.append(harm)
+            filtered_neutral.append(neutral)
+            
+    return filtered_harmful_prompt, filtered_neutral_prompt, filtered_harmful, filtered_neutral
 
 def calculate_perplexity(model_path, tokenizer, texts, device='cuda'):
     model = (

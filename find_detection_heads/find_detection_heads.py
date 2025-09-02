@@ -18,7 +18,7 @@ torch.cuda.manual_seed_all(20)
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--target_model", type=str, default="llama3")
-parser.add_argument("--percent", type=float, default=1)
+parser.add_argument("--percent", type=float, default=3.0)
 args = parser.parse_args()
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -34,7 +34,7 @@ head_dim = target_model.config.hidden_size // num_heads
 num_total_heads = num_layers * num_heads
 
 # Each harmful-neutral prompt differs in only one word
-probing_data = pd.read_csv("filtered_harmful_neutral_prompts.csv")
+probing_data = pd.read_csv("../data/filtered_harmful_neutral_prompts.csv")
 harmful_prompts = probing_data['Harmful Prompt'].tolist()
 neutral_prompts = probing_data['Neutral Prompt'].tolist()
 

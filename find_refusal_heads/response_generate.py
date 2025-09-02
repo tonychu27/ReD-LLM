@@ -21,7 +21,7 @@ parser.add_argument("--tensor_parallel_size", default=1, help="Tensor parallel s
 args = parser.parse_args()
 
 # Each harmful-neutral prompt differs in only one word
-data = pd.read_csv("filtered_harmful_neutral_prompts.csv")
+data = pd.read_csv("../data/filtered_harmful_neutral_prompts.csv")
 harmful_prompt = data['Harmful Prompt'].tolist()
 neutral_prompt = data['Neutral Prompt'].tolist()
 conv = load_conversation_template(args.model)

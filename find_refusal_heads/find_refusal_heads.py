@@ -17,7 +17,7 @@ torch.cuda.manual_seed_all(20)
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--model", type=str, default="llama3")
-parser.add_argument("--percent", type=float, default=1.0, help="Percentage of heads to consider")
+parser.add_argument("--percent", type=float, default=3.0, help="Percentage of heads to consider")
 args = parser.parse_args()
 
 device = "cuda:0" if torch.cuda.is_available() else "cpu"
@@ -103,6 +103,7 @@ with open(f"refusal_heads/{args.model}_{args.percent}.json", "w") as f:
 
 max_abs_value = np.abs(avg_contribution[:, :]).max()
 
+os.makedirs("heat_map", exist_ok=True)
 plt.figure(figsize=(12, 10))
 plt.imshow(avg_contribution[:, :], cmap='coolwarm', aspect='auto', vmin=-max_abs_value, vmax=max_abs_value)
 plt.colorbar(label='Average refusal contribution')

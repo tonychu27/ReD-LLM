@@ -36,13 +36,14 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--model", type=str, default="llama3")
 parser.add_argument("--attack", type=str, default="advllm", help="benign, none, gcg, advllm")
 parser.add_argument("--remove_sys_prompt", action=argparse.BooleanOptionalAction)
+parser.add_argument("--intervened", action=argparse.BooleanOptionalAction)
 parser.add_argument("--dataset", type=str, default="advbench", help="advbench or mlcinst")
 parser.add_argument("--offset", type=int, default=0)
 parser.add_argument("--n_train_data", type=int, default=100)
 parser.add_argument("--percent", type=float, default=3.0)
 parser.add_argument("--detection_factor",type=float, default=3.0)
 parser.add_argument("--refusal_factor", type=float, default=2.0)
-parser.add_argument("--save_path", type=str, required=True, help="Path to save the results")
+parser.add_argument("--save_path", type=str, default="eva_result.csv", help="Path to save the results")
 args = parser.parse_args()
 
 # -------------------- Load model & tokenizer --------------------
@@ -74,7 +75,7 @@ hidden_size = model.config.hidden_size
 head_dim = hidden_size // num_heads
 
 if args.detection_factor != 1.0:
-    detect_path = f"detection_heads/{args.model}_{args.percent}.json"
+    detect_path = f"find_detection_heads/detection_heads/{args.model}_{args.percent}.json"
     with open(detect_path, "r") as f:
         det_list = json.load(f)
     detection_heads = [(int(d["layer"]), int(d["head"])) for d in det_list]
@@ -82,7 +83,7 @@ else:
     detection_heads = []
 
 if args.refusal_factor != 1.0:
-    refusal_path = f"refusal_heads/{args.model}_{args.percent}.json"
+    refusal_path = f"find_refusal_heads/refusal_heads/{args.model}_{args.percent}.json"
     with open(refusal_path, "r") as f:
         ref_list = json.load(f)
     refusal_heads = [(int(d["layer"]), int(d["head"])) for d in ref_list]
@@ -141,7 +142,8 @@ elif args.attack == "advllm_gbs":
 gcg_g = []
 gcg_adv = []
 if args.attack == "gcg":
-    gcg_df = merge_csv(f"data/gcg_results/{args.model}/intervened/")
+    gcg_path = f"data/gcg_results/{args.model}/intervened/" if args.intervened else f"data/gcg_results/{args.model}/original/"
+    gcg_df = merge_csv(gcg_path)
     gcg_g = gcg_df['prompt'].tolist()
     gcg_adv = gcg_df['adv'].tolist()
 
@@ -289,11 +291,8 @@ else:
     print(f"Safe rate (llama guard): {safe_guard:.3f}")
     print(f"Perplexity: {perplexity:.3f}")
 
-os.makedirs("csv_results", exist_ok=True)
-csv_path = f"csv_results/{args.save_path}"
-file_exists = os.path.exists(f"csv_results/{args.save_path}")
-
-with open(csv_path, 'a', newline='') as f:
+file_exists = os.path.exists(args.save_path)
+with open(args.save_path, 'a', newline='') as f:
     writer = csv.writer(f)
     if not file_exists:
         writer.writerow(['model', 'attack', 'dataset', 'detection_factor', 'refusal_factor', 'percent','safe_template', 'safe_guard', 'perplexity'])
