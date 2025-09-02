@@ -17,7 +17,7 @@ torch.manual_seed(20)
 torch.cuda.manual_seed_all(20)
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--target_model", type=str, default="llama3")
+parser.add_argument("--model", type=str, default="llama3")
 parser.add_argument("--percent", type=float, default=3.0)
 args = parser.parse_args()
 

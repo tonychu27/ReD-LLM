@@ -33,7 +33,7 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 
 # -------------------- Argument parsing --------------------
 parser = argparse.ArgumentParser()
-parser.add_argument("--target_model", type=str, default="llama3")
+parser.add_argument("--model", type=str, default="llama3")
 parser.add_argument("--attack", type=str, default="advllm", help="benign, none, gcg, advllm")
 parser.add_argument("--remove_sys_prompt", action=argparse.BooleanOptionalAction)
 parser.add_argument("--dataset", type=str, default="advbench", help="advbench or mlcinst")
