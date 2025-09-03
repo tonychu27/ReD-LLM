@@ -44,7 +44,7 @@ parser.add_argument(
     "--factor",
     type=float,
     default=3.0,
-    help="scale factor for 'scale' mode or alpha for 'add' mode"
+    help="scale factor for 'scale' mode"
 )
 parser.add_argument("--save_path", type=str, default="detection_head_intervention_result.csv", help="Path to save the results")
 args = parser.parse_args()
